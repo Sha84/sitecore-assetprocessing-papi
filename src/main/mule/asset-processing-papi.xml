@@ -121,7 +121,7 @@ output application/json
         </error-handler>
     </flow>
     <flow name="post:\deleteAsset:application\json:asset-processing-papi-config">
-        <logger level="INFO" message="post:\deleteAsset:application\json:asset-processing-papi-config" />
+		<flow-ref doc:name="Flow Reference" doc:id="dfa89f8d-bbd0-4f17-b91c-f1baab1b19c8" name="deleteAssetsFlow"/>
     </flow>
     <flow name="post:\processAsset:application\json:asset-processing-papi-config">
 		<flow-ref doc:name="Flow Reference" doc:id="0a17de79-0dfc-41c4-a05e-1f09712cb533" name="start-assetProcessFlow"/>

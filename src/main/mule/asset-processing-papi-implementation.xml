@@ -21,7 +21,7 @@ http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mu
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="e03e7362-1214-4e55-aa1c-6579dc18c825" />
 	<s3:config name="Amazon_S3_Configuration1" doc:name="Amazon S3 Configuration" doc:id="7480f7fc-67ae-4669-aacc-ed01394e257e" >
-		<s3:basic-connection accessKey="AKIAQB5FMXG6EN2B2BJU" secretKey="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" />
+		<s3:basic-connection accessKey="AKIAQB5FMXG6GXIRIFHZ" secretKey="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" />
 	</s3:config>
 	<mongo-sapi:config name="Mongo_sapi_Config" doc:name="Mongo-sapi Config" doc:id="90da3793-1ea3-4fb9-83e4-308d949f7ed1" property_username="shani" property_password="shani" property_host="localhost" property_port="8081" property_basePath="/api/" property_protocol="HTTP" property_responseTimeout="300000"/>
 	<vm:config name="VM_Config" doc:name="VM Config" doc:id="ec41aff6-405b-476a-9ee7-7c266c1395f4" >
@@ -85,7 +85,7 @@ payload]]></ee:set-variable>
 output application/json
 ---
 {	
-"expirationTime": "1000-12-31T23:59:59+00:00"
+"expirationTime": "1000-12-31T23:59:59+00:00" as DateTime
 }]]></ee:set-payload>
 								</ee:message>
 								<ee:variables >
@@ -107,6 +107,20 @@ vars.individualAsset.id]]></ee:set-variable>
 				</otherwise>
 			</choice>
 		</foreach>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="16f3cd56-7d4c-4cf0-b55d-3e4e6a6cd93b" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:PARSING">
+				<ee:transform doc:name="Transform Message" doc:id="f1d36913-a323-4535-a270-a1007b953f59" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="def-firstchoice-asset-processing-papiFlow" doc:id="4fd34cf3-886b-4b58-a502-468e6c9d840c" >
 		<logger level="INFO" doc:name="Logger" doc:id="ea438ecf-cb5d-419f-a65c-1fb540cb007a" message="control came from default choice of first choice router in asset-processing-papiFlow not restricted option"/>
@@ -126,6 +140,20 @@ vars.individualAsset.id]]></ee:set-variable>
 				<logger level="INFO" doc:name="Logger" doc:id="1d9ca7ef-f874-49b3-baf1-4a8296358f79" message="end"/>
 			</otherwise>
 		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="74909390-ff08-4060-b30a-762854522473" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR">
+				<ee:transform doc:name="Transform Message" doc:id="2cdcd3eb-29f1-4f8b-a541-e88aef840bf1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="DRM_RightsProfile_RightsProfileToAsset_parents_href_processing" doc:id="136988fd-1d19-4ea3-a732-035cf8324a5a" >
 		<ee:transform doc:name="Transform Message" doc:id="d7a8e5d5-5e45-4de1-9983-dc4a58549b7d" >
@@ -216,6 +244,20 @@ payload]]></ee:set-variable>
 				</choice>
 			</otherwise>
 		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3fe17460-9a89-418d-aa44-c7a63a5a6535" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+				<ee:transform doc:name="Transform Message" doc:id="791bb634-5b1c-4606-89a2-ad5fd13c6203" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="DRM_Restricted_RestrictedToAsset_processing" doc:id="6da860c6-6d04-4b2c-8062-288d89260205" >
 		<logger level="INFO" doc:name="Logger" doc:id="aa836abf-165f-4698-8699-da7a0c2a2a0c" message="RestrictedAssetLogger"/>
@@ -227,10 +269,38 @@ payload]]></ee:set-variable>
 				<flow-ref doc:name="Flow Reference" doc:id="b02a4939-c17a-4d1b-9d52-fabef20b4cb5" name="created_by_href_processing"/>
 			</otherwise>
 		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d13ba92a-fa72-4b6c-a83a-c08081677481" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+				<ee:transform doc:name="Transform Message" doc:id="1cfc3250-90a8-4aa9-b70b-7fdedea26757" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="FinalLifeCycleStatusToAsset_processing" doc:id="63a0f9a4-ea7c-4a86-9bce-2ea4a0aa3f3b" >
 		<logger level="INFO" doc:name="Logger" doc:id="87b446b7-0959-4fd5-a4ee-e566941a4282" message="FinalLifeCycleStatusLogger"/>
 		<flow-ref doc:name="Flow Reference" doc:id="bedd5503-5e16-460d-9af9-4b2f766394ac" name="created_by_href_processing"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6d9a2ab2-7daf-489b-bb26-557ec05c8d7c" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+				<ee:transform doc:name="Transform Message" doc:id="d2b96e54-a9d9-4f68-a27e-4287996056c9" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="created_by_href_processing" doc:id="9f78c084-d1e8-467b-b395-01c351dc4203" >
 		<ee:transform doc:name="Transform Message" doc:id="db37a2c9-802c-4e07-ad9b-229e6521e583" >
@@ -314,6 +384,20 @@ payload]]></ee:set-variable>
 				<flow-ref doc:name="Flow Reference" doc:id="dfcc47c5-4689-4be3-8e1d-805b876eff12" name="setDRM_RightsProfile_CalculatedExpirationDateFlow"/>
 			</otherwise>
 		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b2ae20b6-d746-4517-8531-fad889c19b0f" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, HTTP:METHOD_NOT_ALLOWED, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+				<ee:transform doc:name="Transform Message" doc:id="fa6f09b1-81dc-4f28-94f4-cebe6e1403f4" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="modified_by_href_processing" doc:id="b1bcaffb-6019-4a87-8285-b9a36c3231e8" >
 		<logger level="INFO" doc:name="Logger" doc:id="a5ffa15a-04f4-4055-96f2-e9373f42e2e9" message="started modified by field processing"/>
@@ -378,10 +462,38 @@ payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<flow-ref doc:name="Flow Reference" doc:id="5ca8b6c5-c150-4baa-9ec2-e5df5c9e7ff3" name="setDRM_RightsProfile_CalculatedExpirationDateFlow"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2517835f-3329-433f-9290-92683ea71b6d" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+				<ee:transform doc:name="Transform Message" doc:id="415653ef-f86d-4fb4-99a6-fe9c28a956fb" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="setDRM_RightsProfile_CalculatedExpirationDateFlow" doc:id="bfca7254-b2f3-46ad-ac07-d650402d3117" >
 		<logger level="INFO" doc:name="Logger" doc:id="0fbb5355-bc2a-4a8c-8a1c-7ab6f3c990b8" message="setExpirationDatebasedonFinalLifecycle&amp;RestrictedAssetFields"/>
 		<flow-ref doc:name="Flow Reference" doc:id="0be04491-2239-4c96-aa05-0eef4f5bdfba" name="injectingAndRemovingFieldsFlow"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0b2e9fc4-4b5e-4988-b526-01821da1c5db" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR">
+				<ee:transform doc:name="Transform Message" doc:id="547260a3-df6b-484a-a625-47659a2c1c57" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="injectingAndRemovingFieldsFlow" doc:id="47c08256-8bdd-45a5-a4da-efec9398479a" >
 		<logger level="INFO" doc:name="Logger" doc:id="b40dac3a-840d-4b07-ac63-3fd26842dccd" message="setexpirydate"/>
@@ -432,6 +544,20 @@ payload]]></ee:set-variable>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="99de7bb0-1aa1-40ef-b063-6eb106165fad" message="#[payload]"/>
 		<flow-ref doc:name="Flow Reference" doc:id="26c4945b-f120-4e70-acad-d635b70640ee" name="choiceMongoUpdateOrAwsPublish"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="21ba7dd5-d410-4131-b733-a94448d315d9" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:FORBIDDEN, MONGO-SAPI:INTERNAL_SERVER_ERROR">
+				<ee:transform doc:name="Transform Message" doc:id="8a745a5b-9439-4623-94fb-02ed8ec13a4e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="choiceMongoUpdateOrAwsPublish" doc:id="8168ffc4-e24c-4dd3-8cb8-923db5a5c873" >
 		<logger level="INFO" doc:name="Logger" doc:id="12e81589-0ece-466f-8914-102fd9d5817f" message="mongoOrAws"/>
@@ -481,7 +607,7 @@ output application/json
 	"assetMimeType" : vars.individualAsset.properties.MIMEType,
 	"assetName": vars.individualAsset.properties.FileName,
 	"status": "New",
-	"expirationTime":vars.crealExpiryDate.DRM_RightsProfile_CalculatedExpirationDate
+	"expirationTime":vars.crealExpiryDate.DRM_RightsProfile_CalculatedExpirationDate as DateTime
 	
 	
 	
@@ -502,10 +628,10 @@ vars.individualAsset.id]]></ee:set-variable>
 					</otherwise>
 				</choice>
 			</when>
-			<when expression="#[vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].properties.DRM_RightsProfile_CalculatedExpirationDate == null]">
+			<when expression="#[vars.individualAssetMAWSChoice.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].properties.DRM_RightsProfile_CalculatedExpirationDate == null]">
 				<logger level="INFO" doc:name="Logger" doc:id="155cbc35-b5e8-4f1a-9caf-c7e6ca95f5d5" message="individualAsset has null expiration date" />
 			</when>
-			<when expression="#[vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].properties.DRM_RightsProfile_CalculatedExpirationDate as LocalDateTime &gt; now()]">
+			<when expression="#[vars.individualAssetMAWSChoice.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].properties.DRM_RightsProfile_CalculatedExpirationDate as LocalDateTime &gt; now()]">
 						<flow-ref doc:name="Flow Reference" doc:id="6057d2a7-97ec-40a2-ad08-73acc06a1b68" name="publishTransformedMetaDatatoAWS"/>
 					</when>
 					<otherwise>
@@ -517,6 +643,20 @@ vars.individualAsset.id]]></ee:set-variable>
 				<logger level="INFO" doc:name="Logger" doc:id="bf8c23d0-7c41-4e81-9c27-6f8a72b1cfd7" message="DRM_RightsProfile_Parents is empty"/>
 			</otherwise>
 		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7fd3e77f-1a9f-4309-b9f7-db0487ce5167" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:FORBIDDEN, MONGO-SAPI:INTERNAL_SERVER_ERROR">
+				<ee:transform doc:name="Transform Message" doc:id="38e929c2-2a9f-4bff-b22d-34fc2f83478e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="publishTransformedMetaDatatoAWS" doc:id="c12bae1f-11c1-49ce-a4d1-f988e0bf06de" >
 		<logger level="INFO" doc:name="Logger" doc:id="def8d6dc-432c-473c-b532-cf271330007c" message="start"/>
@@ -525,13 +665,13 @@ vars.individualAsset.id]]></ee:set-variable>
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
-vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents map(items,index)->
+vars.individualAssetMAWSChoice.relations.DRM_RightsProfile_RightsProfileToAsset.parents map(items,index)->
 {
 
 
 
     "DRM_RightsProfile_CalculatedExpirationDate":  if(items.properties.DRM_RightsProfile_CalculatedExpirationDate == null)  "Right doesn't Expire"
-    else if(items.properties.DRM_RightsProfile_CalculatedExpirationDate == "9999-12-31T23:59:59.9999999+00:00") "Right doesn't Expire"
+    else if(items.properties.DRM_RightsProfile_CalculatedExpirationDate == "9999-12-31T23:59:59.9999999+00:00") "9999-12-31T23:59:59.9999999+00:00"
     
     else (items.properties.DRM_RightsProfile_CalculatedExpirationDate)
 }
@@ -559,10 +699,10 @@ output application/json
   "assetMimeType": vars.individualAsset.properties.MIMEType,
   "assetName": vars.individualAsset.properties.FileName,
   "status": "NEW",
-  "expirationTime" : vars.realExpiryDate.DRM_RightsProfile_CalculatedExpirationDate,
+  "expirationTime" : vars.realExpiryDate.DRM_RightsProfile_CalculatedExpirationDate  as DateTime,
   "createdBy" : vars.individualAsset.created_by.properties.Username,
-  "createdTime": vars.individualAsset.created_on,
-  "updatedTime": now() as String {format: "y-MM-dd"},
+  "createdTime": vars.individualAsset.created_on as DateTime,
+  "updatedTime": now(),
   "assetJson": vars.individualAsset
 }]]></ee:set-payload>
 			</ee:message>
@@ -650,6 +790,20 @@ vars.individualAsset.assetId]]></ee:set-variable>
 		</ee:transform>
 		<mongo-sapi:update-asset doc:name="Update Asset" doc:id="b52d93b9-7e9a-4047-a495-a1046a39d754" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.mongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
 		<logger level="INFO" doc:name="Logger" doc:id="5fb60e3b-36b5-4be2-8c4a-c08d826d6c02" message="Updated status to published in mongo"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="4b0f9c48-9381-4561-ba4c-6af6522263be" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:FORBIDDEN, MONGO-SAPI:INTERNAL_SERVER_ERROR">
+				<ee:transform doc:name="Transform Message" doc:id="35641d75-de89-4cb7-9b81-8ac1f32bbdff" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 	<flow name="start-assetProcessFlow" doc:id="f12a1fcb-a823-4a8f-b171-a286ca3d9a6c" >
 		<ee:transform doc:name="Transform Message" doc:id="5c9c4c07-a5be-451b-a2a8-d6d95fd531d8" >
@@ -675,5 +829,69 @@ output application/json
 		</ee:transform>
 		<sitecore-sapi:search-and-get-assets doc:name="Search and Get Assets" doc:id="390eafcd-53cd-4480-8668-a615cef60bfe" config-ref="Sitecore_sapi_Config" type="search" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
 		<vm:publish doc:name="Publish" doc:id="f9366c12-9844-49eb-b3f6-0717098a654e" config-ref="VM_Config" queueName="assetQue"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e96fdd98-34f2-4f8d-9799-89dfe565186d" type="SITECORE-SAPI:BAD_REQUEST, SITECORE-SAPI:CONNECTIVITY, SITECORE-SAPI:FORBIDDEN, SITECORE-SAPI:INTERNAL_SERVER_ERROR">
+				<ee:transform doc:name="Transform Message" doc:id="560667ea-ceae-49f2-803c-d1cc80ca7399" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="deleteAssetsFlow" doc:id="c7893977-c421-419b-8331-01307c07f91e" >
+		<logger level="INFO" doc:name="Logger" doc:id="4d0b17b3-9bb2-47fd-b050-39307661d79e" message="#[payload]" />
+		<mongo-sapi:get-a-expired-asset doc:name="Get a expired asset" doc:id="42299148-008d-4d82-9009-d073156fde06" config-ref="Mongo_sapi_Config" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+		<ee:transform doc:name="Transform Message" doc:id="99079537-b417-4fbf-9d9a-96201b338e40" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="b79b1644-fca1-4f29-b4af-bdd8f99a5dc2" >
+			<ee:transform doc:name="Transform Message" doc:id="85126494-ee64-40a7-8f6b-981612be74b9" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="deletePayload" ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="Transform Message" doc:id="a0e81ea1-802d-467d-b744-a645486e905c" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"toBedeletedAWSObjectKey":payload.objectKey
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<s3:delete-object doc:name="Delete object" doc:id="3391b2af-57ac-4053-b1f9-ebb81909e58d" config-ref="Amazon_S3_Configuration1" bucketName="sitecore" key="#[payload.toBedeletedAWSObjectKey]"/>
+			<ee:transform doc:name="Transform Message" doc:id="2877b6d4-0f02-48ce-a041-e09037412590" >
+				<ee:message >
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="deleteMongoAsset" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.deletePayload.assetId]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<mongo-sapi:delete-asset doc:name="Delete Asset" doc:id="fd94117a-3865-4b05-9e50-d17253a256f5" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.deleteMongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+		</foreach>
 	</flow>
 </mule>
