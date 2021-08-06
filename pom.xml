@@ -49,12 +49,6 @@
 			<classifier>mule-plugin</classifier>
 		</dependency>
 		<dependency>
-			<groupId>600a1e2b-9eca-403f-b97d-1178aa13d11a</groupId>
-			<artifactId>mule-plugin-dch-sitecore</artifactId>
-			<version>1.0.1</version>
-			<classifier>mule-plugin</classifier>
-		</dependency>
-		<dependency>
 			<groupId>org.mule.connectors</groupId>
 			<artifactId>mule-sockets-connector</artifactId>
 			<version>1.1.5</version>
@@ -100,6 +94,12 @@
 			<groupId>600a1e2b-9eca-403f-b97d-1178aa13d11a</groupId>
 			<artifactId>mule-plugin-mongo-sapi</artifactId>
 			<version>1.0.5</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>600a1e2b-9eca-403f-b97d-1178aa13d11a</groupId>
+			<artifactId>mule-plugin-dch-sitecore</artifactId>
+			<version>1.0.2</version>
 			<classifier>mule-plugin</classifier>
 		</dependency>
 	</dependencies>

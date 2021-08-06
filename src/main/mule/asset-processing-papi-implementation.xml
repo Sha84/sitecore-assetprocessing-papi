@@ -21,7 +21,7 @@ http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mu
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="e03e7362-1214-4e55-aa1c-6579dc18c825" />
 	<s3:config name="Amazon_S3_Configuration1" doc:name="Amazon S3 Configuration" doc:id="7480f7fc-67ae-4669-aacc-ed01394e257e" >
-		<s3:basic-connection accessKey="AKIAQB5FMXG6GXIRIFHZ" secretKey="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" />
+		<s3:basic-connection/>
 	</s3:config>
 	<mongo-sapi:config name="Mongo_sapi_Config" doc:name="Mongo-sapi Config" doc:id="90da3793-1ea3-4fb9-83e4-308d949f7ed1" property_username="shani" property_password="shani" property_host="localhost" property_port="8081" property_basePath="/api/" property_protocol="HTTP" property_responseTimeout="300000"/>
 	<vm:config name="VM_Config" doc:name="VM Config" doc:id="ec41aff6-405b-476a-9ee7-7c266c1395f4" >
