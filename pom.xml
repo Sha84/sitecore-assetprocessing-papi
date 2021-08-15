@@ -91,15 +91,34 @@
 			<classifier>mule-plugin</classifier>
 		</dependency>
 		<dependency>
-			<groupId>600a1e2b-9eca-403f-b97d-1178aa13d11a</groupId>
+			<groupId>694704ae-436b-41ec-be10-7e4873bd5821</groupId>
+			<artifactId>dch-asset-process-papi</artifactId>
+			<version>1.0.0</version>
+			<classifier>raml</classifier>
+			<type>zip</type>
+		</dependency>
+		<dependency>
+			<groupId>694704ae-436b-41ec-be10-7e4873bd5821</groupId>
 			<artifactId>mule-plugin-mongo-sapi</artifactId>
-			<version>1.0.5</version>
+			<version>1.0.0</version>
 			<classifier>mule-plugin</classifier>
 		</dependency>
 		<dependency>
-			<groupId>600a1e2b-9eca-403f-b97d-1178aa13d11a</groupId>
+			<groupId>694704ae-436b-41ec-be10-7e4873bd5821</groupId>
 			<artifactId>mule-plugin-dch-sitecore</artifactId>
-			<version>1.0.2</version>
+			<version>1.0.0</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>694704ae-436b-41ec-be10-7e4873bd5821</groupId>
+			<artifactId>mule-plugin-update-url-papi</artifactId>
+			<version>1.0.0</version>
+			<classifier>mule-plugin</classifier>
+		</dependency>
+		<dependency>
+			<groupId>com.mulesoft.modules</groupId>
+			<artifactId>mule-secure-configuration-property-module</artifactId>
+			<version>1.2.3</version>
 			<classifier>mule-plugin</classifier>
 		</dependency>
 	</dependencies>

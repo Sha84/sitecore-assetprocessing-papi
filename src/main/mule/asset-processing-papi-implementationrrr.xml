@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:mongo-sapi="http://www.mulesoft.org/schema/mule/mongo-sapi" xmlns:s3="http://www.mulesoft.org/schema/mule/s3"
-	xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo"
-	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:sitecore-sapi="http://www.mulesoft.org/schema/mule/sitecore-sapi" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:update-url-papi="http://www.mulesoft.org/schema/mule/update-url-papi" xmlns:mongo-sapi="http://www.mulesoft.org/schema/mule/mongo-sapi"
+	xmlns:s3="http://www.mulesoft.org/schema/mule/s3"
+	xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:sitecore-sapi="http://www.mulesoft.org/schema/mule/sitecore-sapi" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/sitecore-sapi http://www.mulesoft.org/schema/mule/sitecore-sapi/current/mule-sitecore-sapi.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
 http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
-http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mule/mongo-sapi/current/mule-mongo-sapi.xsd">
+http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mule/mongo-sapi/current/mule-mongo-sapi.xsd
+http://www.mulesoft.org/schema/mule/update-url-papi http://www.mulesoft.org/schema/mule/update-url-papi/current/mule-update-url-papi.xsd">
 	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="2ff59797-2846-45fa-97c0-2d02f844c295" >
 		<http:listener-connection host="0.0.0.0" port="8084" />
 	</http:listener-config>
@@ -20,15 +21,13 @@ http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mu
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="9623180b-1a52-437b-9eec-d35d56727d5f" >
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="e03e7362-1214-4e55-aa1c-6579dc18c825" />
-	<s3:config name="Amazon_S3_Configuration1" doc:name="Amazon S3 Configuration" doc:id="7480f7fc-67ae-4669-aacc-ed01394e257e" >
-		<s3:basic-connection/>
-	</s3:config>
 	<mongo-sapi:config name="Mongo_sapi_Config" doc:name="Mongo-sapi Config" doc:id="90da3793-1ea3-4fb9-83e4-308d949f7ed1" property_username="shani" property_password="shani" property_host="localhost" property_port="8081" property_basePath="/api/" property_protocol="HTTP" property_responseTimeout="300000"/>
 	<vm:config name="VM_Config" doc:name="VM Config" doc:id="ec41aff6-405b-476a-9ee7-7c266c1395f4" >
 		<vm:queues >
 			<vm:queue queueName="assetQue" queueType="PERSISTENT" />
 		</vm:queues>
 	</vm:config>
+	<update-url-papi:config name="Update_url_papi_Config" doc:name="Update-url-papi Config" doc:id="866abd17-df57-4bd9-b166-dab3519da0f5" property_host="localhost" property_port="8085" property_protocol="HTTP" property_username="shani" property_password="shani" property_basePath="/api/" property_responseTimeout="300000" />
 	<flow name="asset-processing-papiFlow" doc:id="038752b9-983f-4f34-a597-963c19a77eb5" >
 		<vm:listener queueName="assetQue" doc:name="Listener" doc:id="cd18604c-650c-4e25-8ccc-efea886f87c2" config-ref="VM_Config"/>
 		<ee:transform doc:name="Transform Message" doc:id="f4943144-f487-480d-9a00-e8e32b56fc72" >
@@ -749,7 +748,7 @@ vars.individualAsset]]></ee:set-payload>
 				<mongo-sapi:postnewasset doc:name="PostNewAsset" doc:id="d96d1d98-357e-4baa-a485-de405f2b0c0c" config-ref="Mongo_sapi_Config" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
 			</otherwise>
 		</choice>
-		<s3:create-bucket doc:name="Create bucket" doc:id="ef05d53c-9ea3-460b-829c-dd5aab48c94a" config-ref="Amazon_S3_Configuration1" bucketName="sitecore"/>
+		<s3:create-bucket doc:name="Create bucket" doc:id="ef05d53c-9ea3-460b-829c-dd5aab48c94a" config-ref="Amazon_S3_Configuration" bucketName="sitecore"/>
 		<logger level="INFO" doc:name="Logger" doc:id="58edf1fa-fae8-4cac-92cb-94881b95f543" message="BucketCreationResponse:#[payload]"/>
 		<ee:transform doc:name="Transform Message" doc:id="0a66596b-f36e-4943-9480-34df4e574261" >
 			<ee:message >
@@ -771,7 +770,7 @@ output application/json
 }]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<s3:create-object doc:name="Create object" doc:id="bc68a376-fef3-4821-bcc9-2064117a2f71" config-ref="Amazon_S3_Configuration1" bucketName="sitecore" key="#[vars.bucketObjectName.ObjectId]"/>
+		<s3:create-object doc:name="Create object" doc:id="bc68a376-fef3-4821-bcc9-2064117a2f71" config-ref="Amazon_S3_Configuration" bucketName="sitecore" key="#[vars.bucketObjectName.ObjectId]"/>
 		<ee:transform doc:name="Transform Message" doc:id="b9591820-112e-43ac-bff8-02fec2c76e4d" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -844,6 +843,28 @@ output application/json
 			</on-error-propagate>
 		</error-handler>
 	</flow>
+	<flow name="asset-processing-papi-implementationFlow" doc:id="75b030f5-852b-4c32-b88d-450ab9248f54" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="96b4b12e-4e3c-4045-966d-95e21ad2c1e5" >
+			<scheduling-strategy >
+				<fixed-frequency timeUnit="HOURS" frequency="1"/>
+			</scheduling-strategy>
+		</scheduler>
+		<ee:transform doc:name="Transform Message" doc:id="27197478-0287-4573-b4a1-5ed8c97b1c63" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  
+  "skip": 0,
+  "take": 200,
+  "updatedTime": "2018-01-01T09:00:00+00:00"
+  
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="Flow Reference" doc:id="6dc3fc1b-c429-4fe7-9305-ede89d6e9a84" name="start-assetProcessFlow"/>
+	</flow>
 	<flow name="deleteAssetsFlow" doc:id="c7893977-c421-419b-8331-01307c07f91e" >
 		<logger level="INFO" doc:name="Logger" doc:id="4d0b17b3-9bb2-47fd-b050-39307661d79e" message="#[payload]" />
 		<mongo-sapi:get-a-expired-asset doc:name="Get a expired asset" doc:id="42299148-008d-4d82-9009-d073156fde06" config-ref="Mongo_sapi_Config" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
@@ -880,7 +901,7 @@ output application/json
 }]]></ee:set-payload>
 				</ee:message>
 			</ee:transform>
-			<s3:delete-object doc:name="Delete object" doc:id="3391b2af-57ac-4053-b1f9-ebb81909e58d" config-ref="Amazon_S3_Configuration1" bucketName="sitecore" key="#[payload.toBedeletedAWSObjectKey]"/>
+			<s3:delete-object doc:name="Delete object" doc:id="3391b2af-57ac-4053-b1f9-ebb81909e58d" config-ref="Amazon_S3_Configuration" bucketName="sitecore" key="#[payload.toBedeletedAWSObjectKey]"/>
 			<ee:transform doc:name="Transform Message" doc:id="2877b6d4-0f02-48ce-a041-e09037412590" >
 				<ee:message >
 				</ee:message>
@@ -892,6 +913,38 @@ vars.deletePayload.assetId]]></ee:set-variable>
 				</ee:variables>
 			</ee:transform>
 			<mongo-sapi:delete-asset doc:name="Delete Asset" doc:id="fd94117a-3865-4b05-9e50-d17253a256f5" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.deleteMongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+			<ee:transform doc:name="Transform Message" doc:id="99ba1527-ae92-41ca-bbf8-6c5a32321411" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{"id": vars.deletePayload.assetId,
+"object_keys":{
+  
+     "OriginalAssetUrl": "",
+     "ThumbnailURL": "",
+     "Thumbnail1URL": "",
+     "BigThumbnail1URL": "",
+     "PreviewURL": "",
+     "Desktop1URL": "",
+     "Desktop2URL": "",
+     "Mobile1URL": "",
+     "Mobile2URL": "",
+     "PSDHighResURL": "",
+     "PSDLowResURL": ""
+  }}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<update-url-papi:updateurl doc:name="UpdateURL" doc:id="96c3047d-71c5-46a8-9ec5-470f9dd6a7ea" x-correlation-id="DCH" config-ref="Update_url_papi_Config"/>
+			<logger level="INFO" doc:name="Logger" doc:id="2864e0ae-062a-434d-9f72-cd709c045de5" message="#[payload]"/>
 		</foreach>
+	</flow>
+	<flow name="asset-processing-papi-implementationFlow1" doc:id="af5990b9-35d6-40cc-8106-b9bcfa24adbf" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="6a8ba3d1-383b-4033-8144-73013f171d2a" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<flow-ref doc:name="Flow Reference" doc:id="f52d3949-399a-4fab-a900-086fd48308e0" name="deleteAssetsFlow"/>
 	</flow>
 </mule>
