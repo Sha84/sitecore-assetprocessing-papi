@@ -11,9 +11,6 @@ http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mo
 http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
 http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mule/mongo-sapi/current/mule-mongo-sapi.xsd
 http://www.mulesoft.org/schema/mule/update-url-papi http://www.mulesoft.org/schema/mule/update-url-papi/current/mule-update-url-papi.xsd">
-	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="2ff59797-2846-45fa-97c0-2d02f844c295" >
-		<http:listener-connection host="0.0.0.0" port="8084" />
-	</http:listener-config>
 	<sitecore-sapi:config name="Sitecore_sapi_Config" doc:name="Sitecore-sapi Config" doc:id="6dff8831-75f5-45db-9479-11dccb5c6818" property_host="localhost" property_port="8082" property_protocol="HTTP" property_username="shani" property_password="shani" property_basePath="/api/" property_responseTimeout="10000000"/>
 	<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="85cd8dea-07eb-418f-8452-6d4a47239410" >
 		<mongo:connection-string-connection connectionString="mongodb+srv://shani_test:test@cluster0.mrlqt.mongodb.net/sitecore_dch?retryWrites=true&amp;w=majority" />
@@ -22,14 +19,12 @@ http://www.mulesoft.org/schema/mule/update-url-papi http://www.mulesoft.org/sche
 	</http:request-config>
 	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="e03e7362-1214-4e55-aa1c-6579dc18c825" />
 	<mongo-sapi:config name="Mongo_sapi_Config" doc:name="Mongo-sapi Config" doc:id="90da3793-1ea3-4fb9-83e4-308d949f7ed1" property_username="shani" property_password="shani" property_host="localhost" property_port="8081" property_basePath="/api/" property_protocol="HTTP" property_responseTimeout="300000"/>
-	<vm:config name="VM_Config" doc:name="VM Config" doc:id="ec41aff6-405b-476a-9ee7-7c266c1395f4" >
-		<vm:queues >
-			<vm:queue queueName="assetQue" queueType="PERSISTENT" />
-		</vm:queues>
-	</vm:config>
 	<update-url-papi:config name="Update_url_papi_Config" doc:name="Update-url-papi Config" doc:id="866abd17-df57-4bd9-b166-dab3519da0f5" property_host="localhost" property_port="8085" property_protocol="HTTP" property_username="shani" property_password="shani" property_basePath="/api/" property_responseTimeout="300000" />
+	<http:request-config name="HTTP_Request_configuration3" doc:name="HTTP Request configuration" doc:id="e98f6cb2-ffb1-42c4-b5f4-12df754ed1c1" basePath="/api/">
+		<http:request-connection host="localhost" port="8085" />
+	</http:request-config>
 	<flow name="asset-processing-papiFlow" doc:id="038752b9-983f-4f34-a597-963c19a77eb5" >
-		<vm:listener queueName="assetQue" doc:name="Listener" doc:id="cd18604c-650c-4e25-8ccc-efea886f87c2" config-ref="VM_Config"/>
+		<vm:listener queueName="assetQue" doc:name="Listener" doc:id="cd18604c-650c-4e25-8ccc-efea886f87c2" config-ref="VM_Config1"/>
 		<ee:transform doc:name="Transform Message" doc:id="f4943144-f487-480d-9a00-e8e32b56fc72" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
@@ -827,7 +822,7 @@ output application/json
 			</ee:message>
 		</ee:transform>
 		<sitecore-sapi:search-and-get-assets doc:name="Search and Get Assets" doc:id="390eafcd-53cd-4480-8668-a615cef60bfe" config-ref="Sitecore_sapi_Config" type="search" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-		<vm:publish doc:name="Publish" doc:id="f9366c12-9844-49eb-b3f6-0717098a654e" config-ref="VM_Config" queueName="assetQue"/>
+		<vm:publish doc:name="Publish" doc:id="f9366c12-9844-49eb-b3f6-0717098a654e" config-ref="VM_Config1" queueName="assetQue"/>
 		<error-handler >
 			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e96fdd98-34f2-4f8d-9799-89dfe565186d" type="SITECORE-SAPI:BAD_REQUEST, SITECORE-SAPI:CONNECTIVITY, SITECORE-SAPI:FORBIDDEN, SITECORE-SAPI:INTERNAL_SERVER_ERROR">
 				<ee:transform doc:name="Transform Message" doc:id="560667ea-ceae-49f2-803c-d1cc80ca7399" >
@@ -918,7 +913,8 @@ vars.deletePayload.assetId]]></ee:set-variable>
 					<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
-{"id": vars.deletePayload.assetId,
+
+{"id": 575365,
 "object_keys":{
   
      "OriginalAssetUrl": "",
@@ -935,7 +931,13 @@ output application/json
   }}]]></ee:set-payload>
 				</ee:message>
 			</ee:transform>
-			<update-url-papi:updateurl doc:name="UpdateURL" doc:id="96c3047d-71c5-46a8-9ec5-470f9dd6a7ea" x-correlation-id="DCH" config-ref="Update_url_papi_Config"/>
+			<http:request method="POST" doc:name="Request" doc:id="c6940f10-324e-4b4a-8333-f5f2028bfb9c" config-ref="HTTP_Request_configuration3" path="uAssets">
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"X correlation id" : "DCH"
+}]]]></http:headers>
+			</http:request>
 			<logger level="INFO" doc:name="Logger" doc:id="2864e0ae-062a-434d-9f72-cd709c045de5" message="#[payload]"/>
 		</foreach>
 	</flow>

@@ -1,7 +1,7 @@
 #Listener configurations
 "http":
    "host": "0.0.0.0"
-   "port": "8091"
+   "port": "8092"
    "basepath": "/"
    "listener":
       "config": "sitecore-sapi-listener-config"
