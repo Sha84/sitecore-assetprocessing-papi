@@ -11,21 +11,9 @@ http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mo
 http://www.mulesoft.org/schema/mule/s3 http://www.mulesoft.org/schema/mule/s3/current/mule-s3.xsd
 http://www.mulesoft.org/schema/mule/mongo-sapi http://www.mulesoft.org/schema/mule/mongo-sapi/current/mule-mongo-sapi.xsd
 http://www.mulesoft.org/schema/mule/update-url-papi http://www.mulesoft.org/schema/mule/update-url-papi/current/mule-update-url-papi.xsd">
-	<sitecore-sapi:config name="Sitecore_sapi_Config" doc:name="Sitecore-sapi Config" doc:id="6dff8831-75f5-45db-9479-11dccb5c6818" property_host="localhost" property_port="8082" property_protocol="HTTP" property_username="shani" property_password="shani" property_basePath="/api/" property_responseTimeout="10000000"/>
-	<mongo:config name="MongoDB_Config" doc:name="MongoDB Config" doc:id="85cd8dea-07eb-418f-8452-6d4a47239410" >
-		<mongo:connection-string-connection connectionString="mongodb+srv://shani_test:test@cluster0.mrlqt.mongodb.net/sitecore_dch?retryWrites=true&amp;w=majority" />
-	</mongo:config>
-	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="9623180b-1a52-437b-9eec-d35d56727d5f" >
-	</http:request-config>
-	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="e03e7362-1214-4e55-aa1c-6579dc18c825" />
-	<mongo-sapi:config name="Mongo_sapi_Config" doc:name="Mongo-sapi Config" doc:id="90da3793-1ea3-4fb9-83e4-308d949f7ed1" property_username="shani" property_password="shani" property_host="localhost" property_port="8081" property_basePath="/api/" property_protocol="HTTP" property_responseTimeout="300000"/>
-	<update-url-papi:config name="Update_url_papi_Config" doc:name="Update-url-papi Config" doc:id="866abd17-df57-4bd9-b166-dab3519da0f5" property_host="localhost" property_port="8085" property_protocol="HTTP" property_username="shani" property_password="shani" property_basePath="/api/" property_responseTimeout="300000" />
-	<http:request-config name="HTTP_Request_configuration3" doc:name="HTTP Request configuration" doc:id="e98f6cb2-ffb1-42c4-b5f4-12df754ed1c1" basePath="/api/">
-		<http:request-connection host="localhost" port="8085" />
-	</http:request-config>
 	<flow name="asset-processing-papiFlow" doc:id="038752b9-983f-4f34-a597-963c19a77eb5" >
-		<vm:listener queueName="assetQue" doc:name="Listener" doc:id="cd18604c-650c-4e25-8ccc-efea886f87c2" config-ref="VM_Config1"/>
-		<ee:transform doc:name="Transform Message" doc:id="f4943144-f487-480d-9a00-e8e32b56fc72" >
+		<vm:listener queueName="${vm.queue}" doc:name="Listener" doc:id="cd18604c-650c-4e25-8ccc-efea886f87c2" config-ref="VM_Config1" timeout="${vm.timeout}"/>
+		<ee:transform doc:name="Assets Payload" doc:id="f4943144-f487-480d-9a00-e8e32b56fc72" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -39,7 +27,7 @@ output application/json
 payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="06ce1a45-92a7-47c0-8084-e1924de83202" >
+		<ee:transform doc:name="Items" doc:id="06ce1a45-92a7-47c0-8084-e1924de83202" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -48,7 +36,7 @@ payload.items]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 		<foreach doc:name="For Each" doc:id="c0e5b7cf-ced0-4246-98c6-96c02c7e37d4" >
-			<ee:transform doc:name="Transform Message" doc:id="02a597b4-c26a-4c11-ad1e-964f6d640fb5" >
+			<ee:transform doc:name="Individual Asset" doc:id="02a597b4-c26a-4c11-ad1e-964f6d640fb5" >
 				<ee:message >
 					<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -67,13 +55,26 @@ output application/json
 payload]]></ee:set-variable>
 				</ee:variables>
 			</ee:transform>
-			<choice doc:name="Choice" doc:id="10cb5521-1638-42c9-a25e-3b931b29a15b" >
+			<choice doc:name="Restricted Asset Check" doc:id="10cb5521-1638-42c9-a25e-3b931b29a15b" >
 				<when expression='#[payload.properties.UsageRightsType.identifier=="Restricted Use(Restricted by date, geography, channel, or other restriction)"]'>
 					<set-variable value="#[vars.individualAsset.id]" doc:name="Set Variable" doc:id="9c251aec-784d-432e-9737-ddeb2e008514" variableName="aID"/>
-					<mongo-sapi:get-a-particular-asset doc:name="Get a particular asset" doc:id="bde8ceb3-4261-451a-afa5-9b9a2647b99d" m-asset-id="#[vars.aID]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH" config-ref="Mongo_sapi_Config"/>
+					<http:request method="GET" doc:name="Mongo Findasset" doc:id="ed6bf2a7-bc58-4f6f-847f-003de817db8a" path="mAssets/{mAssetId}" responseTimeout="300000" config-ref="mongo_Request_configuration">
+						<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+						<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.aID
+}]]]></http:uri-params>
+					</http:request>
 					<choice doc:name="Choice" doc:id="12620b1f-05c9-4656-a5d8-f14813be52a1" >
 						<when expression="#[sizeOf(payload)&gt;0]">
-							<ee:transform doc:name="Transform Message" doc:id="21ad2de0-de3b-4ca9-aa40-3ec9e9cd5ac5">
+							<ee:transform doc:name="Expiration Time" doc:id="21ad2de0-de3b-4ca9-aa40-3ec9e9cd5ac5">
 								<ee:message>
 									<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -89,20 +90,33 @@ output application/json
 vars.individualAsset.id]]></ee:set-variable>
 								</ee:variables>
 							</ee:transform>
-							<mongo-sapi:update-asset doc:name="Update Asset" doc:id="b28d3b74-3ca4-4500-9b88-71a3ab0dedf0" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.mongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+							<http:request method="PATCH" doc:name="Mongo Updateasset" doc:id="627c07c5-000c-4267-95cb-ab8ad8e63bfc" path="/mAssets/{mAssetId}" config-ref="mongo_Request_configuration">
+								<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+								<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.mongoAsset
+}]]]></http:uri-params>
+							</http:request>
 						</when>
 						<otherwise >
-							<logger level="INFO" doc:name="Logger" doc:id="1b22749f-a79f-423d-9e1b-54d28c6a7983" message="Asset is of restricted use and not in database ,so move on to next asset"/>
+							<logger level="INFO" doc:name="Restricted Asset" doc:id="1b22749f-a79f-423d-9e1b-54d28c6a7983" message="Asset is of restricted use and not in database ,so move on to next asset"/>
 						</otherwise>
 					</choice>
 				</when>
 				<otherwise >
-					<flow-ref doc:name="Flow Reference" doc:id="54ad1116-a489-4da7-b5a2-5e22bfbad801" name="def-firstchoice-asset-processing-papiFlow"/>
+					<flow-ref doc:name="First Choice" doc:id="54ad1116-a489-4da7-b5a2-5e22bfbad801" name="def-firstchoice-asset-processing-papiFlow"/>
 				</otherwise>
 			</choice>
 		</foreach>
 		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="16f3cd56-7d4c-4cf0-b55d-3e4e6a6cd93b" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:PARSING">
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="16f3cd56-7d4c-4cf0-b55d-3e4e6a6cd93b" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY">
 				<ee:transform doc:name="Transform Message" doc:id="f1d36913-a323-4535-a270-a1007b953f59" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
@@ -121,21 +135,21 @@ output application/json
 		<logger level="INFO" doc:name="Logger" doc:id="d88e6693-d403-42f9-b30f-6b5a7d04d591" message="#[vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].href]"/>
 		<choice doc:name="Choice" doc:id="ce4ef5fe-9868-4582-a28b-3d8afbb16dce" >
 			<when expression="#[isEmpty(vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents)==false]">
-				<http:request method="GET" doc:name="DRM_RightsProfile_RightsProfileToAsset_href" doc:id="c38aaaf0-e84c-4c6a-ba37-d9cdd01a7638" config-ref="HTTP_Request_configuration" url="http://sitecore-integration.us-e2.cloudhub.io/hrefentities/1861637" responseTimeout="300000">
+				<http:request method="GET" doc:name="DRM_RightsProfile_RightsProfileToAsset_href" doc:id="c38aaaf0-e84c-4c6a-ba37-d9cdd01a7638" url="${drm.url}" responseTimeout="300000" config-ref="H_Request_configuration">
 				</http:request>
 				<logger level="INFO" doc:name="Logger" doc:id="d3fb8e64-90e7-4109-a79b-edf4847c7db5" message="#[payload]"/>
-				<flow-ref doc:name="Flow Reference" doc:id="595aa468-3b6a-4f72-b28d-412d21bd97cf" name="DRM_RightsProfile_RightsProfileToAsset_parents_href_processing"/>
+				<flow-ref doc:name="Rights Profile" doc:id="595aa468-3b6a-4f72-b28d-412d21bd97cf" name="DRM_RightsProfile_RightsProfileToAsset_parents_href_processing"/>
 			</when>
 			<when expression="#[isEmpty(vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents)==true]">
 				<logger level="INFO" doc:name="Logger" doc:id="4c00d1a0-45df-4d89-a0a4-66100c78a3c8" message="parents  have an empty array so move to next procesing"/>
-				<flow-ref doc:name="Flow Reference" doc:id="98d560cd-8378-40ff-ba91-a38765824ecf" name="created_by_href_processing"/>
+				<flow-ref doc:name="Created By" doc:id="98d560cd-8378-40ff-ba91-a38765824ecf" name="created_by_href_processing"/>
 			</when>
 			<otherwise >
 				<logger level="INFO" doc:name="Logger" doc:id="1d9ca7ef-f874-49b3-baf1-4a8296358f79" message="end"/>
 			</otherwise>
 		</choice>
 		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="74909390-ff08-4060-b30a-762854522473" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR">
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="74909390-ff08-4060-b30a-762854522473" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST">
 				<ee:transform doc:name="Transform Message" doc:id="2cdcd3eb-29f1-4f8b-a541-e88aef840bf1" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
@@ -150,7 +164,7 @@ output application/json
 		</error-handler>
 	</flow>
 	<flow name="DRM_RightsProfile_RightsProfileToAsset_parents_href_processing" doc:id="136988fd-1d19-4ea3-a732-035cf8324a5a" >
-		<ee:transform doc:name="Transform Message" doc:id="d7a8e5d5-5e45-4de1-9983-dc4a58549b7d" >
+		<ee:transform doc:name="Vars Asset" doc:id="d7a8e5d5-5e45-4de1-9983-dc4a58549b7d" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -165,7 +179,7 @@ payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="1a28148a-4964-4b72-930e-dfebc99f4770" message="#[payload.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0]]"/>
-		<ee:transform doc:name="Transform Message" doc:id="cfabd514-240d-4e20-9bb0-7eb2f7ed52f1" >
+		<ee:transform doc:name="Parents Payload" doc:id="cfabd514-240d-4e20-9bb0-7eb2f7ed52f1" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -177,7 +191,7 @@ payload.relations.DRM_RightsProfile_RightsProfileToAsset.parents
 ]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="9dc5cf0c-13fd-42f6-b656-4f08098ac10b" >
+		<ee:transform doc:name="First Update" doc:id="9dc5cf0c-13fd-42f6-b656-4f08098ac10b" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -194,7 +208,7 @@ output application/json
 }}]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="cd51dba1-941a-4c3d-9c3d-af625a3f4613" >
+		<ee:transform doc:name="Asseta Payload" doc:id="cd51dba1-941a-4c3d-9c3d-af625a3f4613" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -202,7 +216,7 @@ output application/json
 vars.individualAsset]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="47897c81-b145-4127-9c44-057b477390c1" >
+		<ee:transform doc:name="Update Payload" doc:id="47897c81-b145-4127-9c44-057b477390c1" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -213,7 +227,7 @@ payload update {
 			</ee:message>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="4eed441e-ad2b-441a-8a53-e6357b3ac967" message="#[payload]"/>
-		<ee:transform doc:name="Transform Message" doc:id="2135e891-030f-4a39-a822-19476337a7bb" >
+		<ee:transform doc:name="Vars Asset" doc:id="2135e891-030f-4a39-a822-19476337a7bb" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -225,21 +239,21 @@ payload]]></ee:set-variable>
 		</ee:transform>
 		<choice doc:name="Choice" doc:id="ca6abe1a-0388-4040-b28b-a8e02a5438b8" >
 			<when expression="#[isEmpty(vars.individualAsset.relations.DRM_Restricted_RestrictedToAsset.parents)==false]">
-				<flow-ref doc:name="Flow Reference" doc:id="b7e534b0-471a-4941-81ca-b021e8a1bb69" name="DRM_Restricted_RestrictedToAsset_processing"/>
+				<flow-ref doc:name="DRM Restricted" doc:id="b7e534b0-471a-4941-81ca-b021e8a1bb69" name="DRM_Restricted_RestrictedToAsset_processing"/>
 			</when>
 			<otherwise >
 				<choice doc:name="Choice" doc:id="d4ee454a-40dc-4128-bea9-0c60dc310a15" >
 					<when expression="#[isEmpty(vars.individualAsset.relations.FinalLifeCycleStatusToAsset.parents)==false]">
-						<flow-ref doc:name="Flow Reference" doc:id="31072395-f27e-4741-98af-af40d6ea83a6" name="FinalLifeCycleStatusToAsset_processing"/>
+						<flow-ref doc:name="Final Lifecycle" doc:id="31072395-f27e-4741-98af-af40d6ea83a6" name="FinalLifeCycleStatusToAsset_processing"/>
 					</when>
 					<otherwise >
-						<flow-ref doc:name="Flow Reference" doc:id="d4738253-a5bb-451b-b6a3-2eaef7e738ae" name="created_by_href_processing"/>
+						<flow-ref doc:name="Created By" doc:id="d4738253-a5bb-451b-b6a3-2eaef7e738ae" name="created_by_href_processing"/>
 					</otherwise>
 				</choice>
 			</otherwise>
 		</choice>
 		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3fe17460-9a89-418d-aa44-c7a63a5a6535" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3fe17460-9a89-418d-aa44-c7a63a5a6535" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY">
 				<ee:transform doc:name="Transform Message" doc:id="791bb634-5b1c-4606-89a2-ad5fd13c6203" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
@@ -257,32 +271,18 @@ output application/json
 		<logger level="INFO" doc:name="Logger" doc:id="aa836abf-165f-4698-8699-da7a0c2a2a0c" message="RestrictedAssetLogger"/>
 		<choice doc:name="Choice" doc:id="7b60dc6d-0bde-4de0-b5b2-b0aee21b5942" >
 			<when expression="#[isEmpty(vars.individualAsset.relations.FinalLifeCycleStatusToAsset.parents)==false]">
-				<flow-ref doc:name="Flow Reference" doc:id="ea60d2be-76d5-46f6-8bf8-dab2f0ebf19b" name="FinalLifeCycleStatusToAsset_processing"/>
+				<flow-ref doc:name="Final Lifecycle" doc:id="ea60d2be-76d5-46f6-8bf8-dab2f0ebf19b" name="FinalLifeCycleStatusToAsset_processing"/>
 			</when>
 			<otherwise >
-				<flow-ref doc:name="Flow Reference" doc:id="b02a4939-c17a-4d1b-9d52-fabef20b4cb5" name="created_by_href_processing"/>
+				<flow-ref doc:name="Created By" doc:id="b02a4939-c17a-4d1b-9d52-fabef20b4cb5" name="created_by_href_processing"/>
 			</otherwise>
 		</choice>
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d13ba92a-fa72-4b6c-a83a-c08081677481" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
-				<ee:transform doc:name="Transform Message" doc:id="1cfc3250-90a8-4aa9-b70b-7fdedea26757" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"message":error.description
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
 	</flow>
 	<flow name="FinalLifeCycleStatusToAsset_processing" doc:id="63a0f9a4-ea7c-4a86-9bce-2ea4a0aa3f3b" >
 		<logger level="INFO" doc:name="Logger" doc:id="87b446b7-0959-4fd5-a4ee-e566941a4282" message="FinalLifeCycleStatusLogger"/>
-		<flow-ref doc:name="Flow Reference" doc:id="bedd5503-5e16-460d-9af9-4b2f766394ac" name="created_by_href_processing"/>
+		<flow-ref doc:name="Created By" doc:id="bedd5503-5e16-460d-9af9-4b2f766394ac" name="created_by_href_processing"/>
 		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6d9a2ab2-7daf-489b-bb26-557ec05c8d7c" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6d9a2ab2-7daf-489b-bb26-557ec05c8d7c" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY">
 				<ee:transform doc:name="Transform Message" doc:id="d2b96e54-a9d9-4f68-a27e-4287996056c9" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
@@ -297,7 +297,7 @@ output application/json
 		</error-handler>
 	</flow>
 	<flow name="created_by_href_processing" doc:id="9f78c084-d1e8-467b-b395-01c351dc4203" >
-		<ee:transform doc:name="Transform Message" doc:id="db37a2c9-802c-4e07-ad9b-229e6521e583" >
+		<ee:transform doc:name="Asset Payload" doc:id="db37a2c9-802c-4e07-ad9b-229e6521e583" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -305,10 +305,10 @@ output application/json
 vars.individualAsset]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<http:request method="GET" doc:name="Request" doc:id="892189dc-60ff-4b11-abb0-33c0f062ce29" config-ref="HTTP_Request_configuration" responseTimeout="300000" url="http://sitecore-integration.us-e2.cloudhub.io/createdby/6">
+		<http:request method="GET" doc:name="Created By" doc:id="892189dc-60ff-4b11-abb0-33c0f062ce29" responseTimeout="300000" url="${createdby.url}" config-ref="H_Request_configuration">
 		</http:request>
 		<logger level="INFO" doc:name="Logger" doc:id="d90e25e6-132f-4b11-a0e3-32ed5d863485" message="#[payload]"/>
-		<ee:transform doc:name="Transform Message" doc:id="c9a924d6-7291-4a3d-86ad-45f91cccb68c" >
+		<ee:transform doc:name="Assetb Payload" doc:id="c9a924d6-7291-4a3d-86ad-45f91cccb68c" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -322,7 +322,7 @@ output application/json
 payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="bae43ee6-5654-4d7d-8731-63e7f665f655" >
+		<ee:transform doc:name="Update Portion" doc:id="bae43ee6-5654-4d7d-8731-63e7f665f655" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -348,7 +348,7 @@ output application/json
 }]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="64ff8c79-1585-417c-b216-3d32a048dce8" >
+		<ee:transform doc:name="Payload Update" doc:id="64ff8c79-1585-417c-b216-3d32a048dce8" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -359,7 +359,7 @@ payload update {
 			</ee:message>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="cd6065ef-fe30-48d6-b0eb-f773b0402197" message="#[payload]]"/>
-		<ee:transform doc:name="Transform Message" doc:id="3879bdb1-fb6f-4753-bc4e-34126f18cd33" >
+		<ee:transform doc:name="Vars Asset" doc:id="3879bdb1-fb6f-4753-bc4e-34126f18cd33" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -371,34 +371,20 @@ payload]]></ee:set-variable>
 		</ee:transform>
 		<choice doc:name="Choice" doc:id="9ca0c8ff-6492-4a05-94e5-a1a876ea7e28" >
 			<when expression='#[isEmpty(payload.modified_by)==false]'>
-				<flow-ref doc:name="Flow Reference" doc:id="bfaed0fd-9017-43d5-b13b-b9e0b9309a6c" name="modified_by_href_processing" />
+				<flow-ref doc:name="Modified By" doc:id="bfaed0fd-9017-43d5-b13b-b9e0b9309a6c" name="modified_by_href_processing" />
 			</when>
 			<otherwise >
 				<logger level="INFO" doc:name="Logger" doc:id="5a58224e-93f9-420a-9e59-9f22117fc7a2" message="modified_by field doesnt exist"/>
-				<flow-ref doc:name="Flow Reference" doc:id="dfcc47c5-4689-4be3-8e1d-805b876eff12" name="setDRM_RightsProfile_CalculatedExpirationDateFlow"/>
+				<flow-ref doc:name="Calculate Expiry" doc:id="dfcc47c5-4689-4be3-8e1d-805b876eff12" name="setDRM_RightsProfile_CalculatedExpirationDateFlow"/>
 			</otherwise>
 		</choice>
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b2ae20b6-d746-4517-8531-fad889c19b0f" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, HTTP:METHOD_NOT_ALLOWED, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
-				<ee:transform doc:name="Transform Message" doc:id="fa6f09b1-81dc-4f28-94f4-cebe6e1403f4" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"message":error.description
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
 	</flow>
 	<flow name="modified_by_href_processing" doc:id="b1bcaffb-6019-4a87-8285-b9a36c3231e8" >
 		<logger level="INFO" doc:name="Logger" doc:id="a5ffa15a-04f4-4055-96f2-e9373f42e2e9" message="started modified by field processing"/>
-		<http:request method="GET" doc:name="Request" doc:id="43e6c73a-6eb8-4d27-a754-27868dbe2b31" config-ref="HTTP_Request_configuration1" url="http://sitecore-integration.us-e2.cloudhub.io/modifiedby/120941" responseTimeout="300000">
+		<http:request method="GET" doc:name="Modified By" doc:id="43e6c73a-6eb8-4d27-a754-27868dbe2b31" url="${modifiedby.url}" responseTimeout="300000">
 		</http:request>
 		<logger level="INFO" doc:name="Logger" doc:id="64580d72-b9f3-4d6f-af57-c64f1e34660e" message="#[payload]"/>
-		<ee:transform doc:name="Transform Message" doc:id="618bbf91-4b4f-4281-a95c-5402ae3c8698" >
+		<ee:transform doc:name="Assetc Payload" doc:id="618bbf91-4b4f-4281-a95c-5402ae3c8698" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -412,7 +398,7 @@ output application/json
 payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="df628713-28f2-4894-9829-205aacf63855" >
+		<ee:transform doc:name="Modified Portion" doc:id="df628713-28f2-4894-9829-205aacf63855" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -432,7 +418,7 @@ output application/json
 }]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="977d3772-1f4d-4904-b1ac-c018fb353a6b" >
+		<ee:transform doc:name="Update Payload" doc:id="977d3772-1f4d-4904-b1ac-c018fb353a6b" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -455,43 +441,15 @@ output application/json
 payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<flow-ref doc:name="Flow Reference" doc:id="5ca8b6c5-c150-4baa-9ec2-e5df5c9e7ff3" name="setDRM_RightsProfile_CalculatedExpirationDateFlow"/>
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2517835f-3329-433f-9290-92683ea71b6d" type="HTTP:BAD_GATEWAY, HTTP:BAD_REQUEST, HTTP:CONNECTIVITY, MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR, MONGO-SAPI:METHOD_NOT_ALLOWED">
-				<ee:transform doc:name="Transform Message" doc:id="415653ef-f86d-4fb4-99a6-fe9c28a956fb" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"message":error.description
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
+		<flow-ref doc:name="Calculate Expiry" doc:id="5ca8b6c5-c150-4baa-9ec2-e5df5c9e7ff3" name="setDRM_RightsProfile_CalculatedExpirationDateFlow"/>
 	</flow>
 	<flow name="setDRM_RightsProfile_CalculatedExpirationDateFlow" doc:id="bfca7254-b2f3-46ad-ac07-d650402d3117" >
 		<logger level="INFO" doc:name="Logger" doc:id="0fbb5355-bc2a-4a8c-8a1c-7ab6f3c990b8" message="setExpirationDatebasedonFinalLifecycle&amp;RestrictedAssetFields"/>
-		<flow-ref doc:name="Flow Reference" doc:id="0be04491-2239-4c96-aa05-0eef4f5bdfba" name="injectingAndRemovingFieldsFlow"/>
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0b2e9fc4-4b5e-4988-b526-01821da1c5db" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:INTERNAL_SERVER_ERROR">
-				<ee:transform doc:name="Transform Message" doc:id="547260a3-df6b-484a-a625-47659a2c1c57" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"message":error.description
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
+		<flow-ref doc:name="Inject Remove" doc:id="0be04491-2239-4c96-aa05-0eef4f5bdfba" name="injectingAndRemovingFieldsFlow"/>
 	</flow>
 	<flow name="injectingAndRemovingFieldsFlow" doc:id="47c08256-8bdd-45a5-a4da-efec9398479a" >
 		<logger level="INFO" doc:name="Logger" doc:id="b40dac3a-840d-4b07-ac63-3fd26842dccd" message="setexpirydate"/>
-		<ee:transform doc:name="Transform Message" doc:id="fae616c7-4f2f-4833-9624-2f64045fcae4" >
+		<ee:transform doc:name="Vars Iasset" doc:id="fae616c7-4f2f-4833-9624-2f64045fcae4" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -499,7 +457,7 @@ output application/json
 vars.individualAsset]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="7d76d566-2c17-433f-9138-87e1204bddda" >
+		<ee:transform doc:name="Append Payload" doc:id="7d76d566-2c17-433f-9138-87e1204bddda" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -507,7 +465,7 @@ output application/json
 payload ++ {"SourceSystem" : "SITECORE"}]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="1cca3a87-fb0b-4057-88b0-acca635f3e10" >
+		<ee:transform doc:name="Remove Fields" doc:id="1cca3a87-fb0b-4057-88b0-acca635f3e10" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -515,7 +473,7 @@ output application/json
 payload--["entitydefinition","copy","permissions","lifecycle","annotations","collections","is_root_taxonomy_item","is_path_root","inherits_security","is_system_owned","full","self"]]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="6b0670b8-9e11-4141-8935-ab4e0778d2c4" >
+		<ee:transform doc:name="Update Ipayload" doc:id="6b0670b8-9e11-4141-8935-ab4e0778d2c4" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -526,7 +484,7 @@ payload update {
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="0e927f63-621d-4303-a8ac-1fc560964c5f" >
+		<ee:transform doc:name="Vars Dasset" doc:id="0e927f63-621d-4303-a8ac-1fc560964c5f" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -537,21 +495,7 @@ payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger" doc:id="99de7bb0-1aa1-40ef-b063-6eb106165fad" message="#[payload]"/>
-		<flow-ref doc:name="Flow Reference" doc:id="26c4945b-f120-4e70-acad-d635b70640ee" name="choiceMongoUpdateOrAwsPublish"/>
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="21ba7dd5-d410-4131-b733-a94448d315d9" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:FORBIDDEN, MONGO-SAPI:INTERNAL_SERVER_ERROR">
-				<ee:transform doc:name="Transform Message" doc:id="8a745a5b-9439-4623-94fb-02ed8ec13a4e" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"message":error.description
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
+		<flow-ref doc:name="Choice Aws" doc:id="26c4945b-f120-4e70-acad-d635b70640ee" name="choiceMongoUpdateOrAwsPublish"/>
 	</flow>
 	<flow name="choiceMongoUpdateOrAwsPublish" doc:id="8168ffc4-e24c-4dd3-8cb8-923db5a5c873" >
 		<logger level="INFO" doc:name="Logger" doc:id="12e81589-0ece-466f-8914-102fd9d5817f" message="mongoOrAws"/>
@@ -560,10 +504,23 @@ output application/json
 				<choice doc:name="Choice" doc:id="69262adb-227e-4b18-a443-bdbe4e9e985a">
 			<when expression="#[vars.individualAssetMAWSChoice.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].properties.DRM_RightsProfile_CalculatedExpirationDate as LocalDateTime &lt; now()]">
 				<set-variable value="#[vars.individualAsset.id]" doc:name="Set Variable" doc:id="c2abd3e3-7718-4862-ba42-e37e9e676bc5" variableName="aID"/>
-						<mongo-sapi:get-a-particular-asset doc:name="Get a particular asset" doc:id="4b701f56-bb47-4e8d-b844-88ac9cda7ea0" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.aID]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-				<choice doc:name="Choice" doc:id="432a31e9-42a6-4066-bdc3-2d8db7dde33d">
+				<http:request method="GET" doc:name="Mongo Findasset" doc:id="b3ef6953-615b-4ed4-b28f-e7f8ede0c87a" path="mAssets/{mAssetId}" responseTimeout="300000" config-ref="mongo_Request_configuration">
+							<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+							<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.aID
+}]]]></http:uri-params>
+						</http:request>
+						<choice doc:name="Choice" doc:id="432a31e9-42a6-4066-bdc3-2d8db7dde33d">
 					<when expression="#[sizeOf(payload)&gt;0]">
-						<ee:transform doc:name="Transform Message" doc:id="a678b895-9254-4a1d-9cd5-879f4af7779e">
+						<ee:transform doc:name="Calculate Expiry" doc:id="a678b895-9254-4a1d-9cd5-879f4af7779e">
 							<ee:message>
 								<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -581,7 +538,7 @@ vars.individualAsset.relations.DRM_RightsProfile_RightsProfileToAsset.parents ma
 ]]></ee:set-payload>
 							</ee:message>
 						</ee:transform>
-						<ee:transform doc:name="Transform Message" doc:id="9b651870-cf22-45d4-bcb0-4128d80fce7b">
+						<ee:transform doc:name="Max Expiry" doc:id="9b651870-cf22-45d4-bcb0-4128d80fce7b">
 							<ee:message>
 							</ee:message>
 									<ee:variables >
@@ -591,7 +548,7 @@ output application/json
 payload maxBy ((item) -> item.DRM_RightsProfile_CalculatedExpirationDate)]]></ee:set-variable>
 									</ee:variables>
 						</ee:transform>
-						<ee:transform doc:name="Transform Message" doc:id="cc36eb84-a9ed-46ec-bb37-06f6751faff3">
+						<ee:transform doc:name="Expiry Update" doc:id="cc36eb84-a9ed-46ec-bb37-06f6751faff3">
 							<ee:message>
 								<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -614,8 +571,21 @@ output application/json
 vars.individualAsset.id]]></ee:set-variable>
 									</ee:variables>
 						</ee:transform>
-						<mongo-sapi:update-asset doc:name="Update Asset" doc:id="df0e4402-897a-4fac-aab3-0b63b6b3371e" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.mongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-						<logger level="INFO" doc:name="Logger" doc:id="8a2b69b2-bc2c-4728-8ea1-2e475f52e50d" message="#[payload]" />
+						<http:request method="PATCH" doc:name="Mongo Updateasset" doc:id="243c6813-d909-4a80-b782-7d870606e2da" path="mAssets/{mAssetId}" config-ref="mongo_Request_configuration">
+									<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+									<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.mongoAsset
+}]]]></http:uri-params>
+								</http:request>
+								<logger level="INFO" doc:name="Logger" doc:id="8a2b69b2-bc2c-4728-8ea1-2e475f52e50d" message="#[payload]" />
 					</when>
 					<otherwise>
 						<logger level="INFO" doc:name="Logger" doc:id="c26fe30c-3b59-4a6f-bc0f-afa210434d22" message="The enriched individual asset which has a past date as expiration date and doesn't exist in Mongo db" />
@@ -626,7 +596,7 @@ vars.individualAsset.id]]></ee:set-variable>
 				<logger level="INFO" doc:name="Logger" doc:id="155cbc35-b5e8-4f1a-9caf-c7e6ca95f5d5" message="individualAsset has null expiration date" />
 			</when>
 			<when expression="#[vars.individualAssetMAWSChoice.relations.DRM_RightsProfile_RightsProfileToAsset.parents[0].properties.DRM_RightsProfile_CalculatedExpirationDate as LocalDateTime &gt; now()]">
-						<flow-ref doc:name="Flow Reference" doc:id="6057d2a7-97ec-40a2-ad08-73acc06a1b68" name="publishTransformedMetaDatatoAWS"/>
+						<flow-ref doc:name="Transformed Metadata" doc:id="6057d2a7-97ec-40a2-ad08-73acc06a1b68" name="publishTransformedMetaDatatoAWS"/>
 					</when>
 					<otherwise>
 						<logger level="INFO" doc:name="Logger" doc:id="d4e436ad-cac3-4296-a1be-2951ffb8554a" message="expiration date not past or null or future"/>
@@ -637,24 +607,10 @@ vars.individualAsset.id]]></ee:set-variable>
 				<logger level="INFO" doc:name="Logger" doc:id="bf8c23d0-7c41-4e81-9c27-6f8a72b1cfd7" message="DRM_RightsProfile_Parents is empty"/>
 			</otherwise>
 		</choice>
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7fd3e77f-1a9f-4309-b9f7-db0487ce5167" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:FORBIDDEN, MONGO-SAPI:INTERNAL_SERVER_ERROR">
-				<ee:transform doc:name="Transform Message" doc:id="38e929c2-2a9f-4bff-b22d-34fc2f83478e" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"message":error.description
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
 	</flow>
 	<flow name="publishTransformedMetaDatatoAWS" doc:id="c12bae1f-11c1-49ce-a4d1-f988e0bf06de" >
 		<logger level="INFO" doc:name="Logger" doc:id="def8d6dc-432c-473c-b532-cf271330007c" message="start"/>
-		<ee:transform doc:name="Transform Message" doc:id="f993e029-0945-48ef-a331-bd671ef30a16" >
+		<ee:transform doc:name="Pexpiry Calculation" doc:id="f993e029-0945-48ef-a331-bd671ef30a16" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -672,7 +628,7 @@ vars.individualAssetMAWSChoice.relations.DRM_RightsProfile_RightsProfileToAsset.
 ]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="f7f5b346-3b76-464f-a2cf-82254963f90f" >
+		<ee:transform doc:name="Compare Dates" doc:id="f7f5b346-3b76-464f-a2cf-82254963f90f" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -682,7 +638,7 @@ output application/json
 payload maxBy ((item) -> item.DRM_RightsProfile_CalculatedExpirationDate)]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="5fa42424-d9ed-425d-a67f-0eaf52e2fa84" >
+		<ee:transform doc:name="Publish Structure" doc:id="5fa42424-d9ed-425d-a67f-0eaf52e2fa84" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -701,7 +657,7 @@ output application/json
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="d5472ec8-172c-4d80-8b08-87a74d26d4e9" >
+		<ee:transform doc:name="Publish Payload" doc:id="d5472ec8-172c-4d80-8b08-87a74d26d4e9" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -711,11 +667,24 @@ output application/json
 payload]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<set-variable value="#[vars.individualAsset.assetId]" doc:name="Set Variable" doc:id="f1948c10-ee79-498d-90a2-c16bb1e6d67b" variableName="aID"/>
-		<mongo-sapi:get-a-particular-asset doc:name="Get a particular asset" doc:id="f654357a-7f25-424d-aaf9-b76a22db85aa" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.aID]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+		<set-variable value="#[vars.individualAsset.assetId]" doc:name="A Id" doc:id="f1948c10-ee79-498d-90a2-c16bb1e6d67b" variableName="aID"/>
+		<http:request method="GET" doc:name="Mongo Findasset" doc:id="2d29a557-b2b3-4515-be8c-c9f7b0309139" path="mAssets/{mAssetId}" responseTimeout="300000" config-ref="mongo_Request_configuration">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.aID
+}]]]></http:uri-params>
+		</http:request>
 		<choice doc:name="Choice" doc:id="b5351e17-7047-4109-92dd-92a99de4eae5" >
 			<when expression="#[sizeOf(payload)&gt;0]">
-				<ee:transform doc:name="Transform Message" doc:id="a21bf9b0-8997-41fc-b0d3-20dc7a50898e">
+				<ee:transform doc:name="To Update" doc:id="a21bf9b0-8997-41fc-b0d3-20dc7a50898e">
 					<ee:message>
 						<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -729,10 +698,23 @@ output application/json
 vars.individualAsset.assetId]]></ee:set-variable>
 					</ee:variables>
 				</ee:transform>
-				<mongo-sapi:update-asset doc:name="Update Asset" doc:id="41ca89cb-35cc-4140-af95-fe30e80b4647" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.mongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+				<http:request method="PATCH" doc:name="Mongo Update" doc:id="cf7b27c7-4f20-426c-b848-9ea44f53ec58" path="mAssets/{mAssetId}" config-ref="mongo_Request_configuration">
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+					<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.mongoAsset
+}]]]></http:uri-params>
+				</http:request>
 			</when>
 			<otherwise >
-				<ee:transform doc:name="Transform Message" doc:id="9e4e27c2-28a7-49ec-a713-68f3e8085dc9">
+				<ee:transform doc:name="To Insert" doc:id="9e4e27c2-28a7-49ec-a713-68f3e8085dc9">
 					<ee:message>
 						<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -740,12 +722,20 @@ output application/json
 vars.individualAsset]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
-				<mongo-sapi:postnewasset doc:name="PostNewAsset" doc:id="d96d1d98-357e-4baa-a485-de405f2b0c0c" config-ref="Mongo_sapi_Config" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
+				<http:request method="POST" doc:name="Mongo Post" doc:id="268d5535-b8a2-4cb2-a919-4809a11312eb" path="${mongoconfig.postpath}" config-ref="mongo_Request_configuration">
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+				</http:request>
 			</otherwise>
 		</choice>
-		<s3:create-bucket doc:name="Create bucket" doc:id="ef05d53c-9ea3-460b-829c-dd5aab48c94a" config-ref="Amazon_S3_Configuration" bucketName="sitecore"/>
+		<s3:create-bucket doc:name="Create bucket" doc:id="ef05d53c-9ea3-460b-829c-dd5aab48c94a" config-ref="Amazon_S3_Configuration" bucketName="${S3.bucket}"/>
 		<logger level="INFO" doc:name="Logger" doc:id="58edf1fa-fae8-4cac-92cb-94881b95f543" message="BucketCreationResponse:#[payload]"/>
-		<ee:transform doc:name="Transform Message" doc:id="0a66596b-f36e-4943-9480-34df4e574261" >
+		<ee:transform doc:name="Assetm Payload" doc:id="0a66596b-f36e-4943-9480-34df4e574261" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -753,7 +743,7 @@ output application/json
 vars.individualAsset]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<ee:transform doc:name="Transform Message" doc:id="7257acf0-87b6-4da2-8976-debb40b013fb" >
+		<ee:transform doc:name="Object Id" doc:id="7257acf0-87b6-4da2-8976-debb40b013fb" >
 			<ee:message >
 			</ee:message>
 			<ee:variables >
@@ -765,8 +755,8 @@ output application/json
 }]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<s3:create-object doc:name="Create object" doc:id="bc68a376-fef3-4821-bcc9-2064117a2f71" config-ref="Amazon_S3_Configuration" bucketName="sitecore" key="#[vars.bucketObjectName.ObjectId]"/>
-		<ee:transform doc:name="Transform Message" doc:id="b9591820-112e-43ac-bff8-02fec2c76e4d" >
+		<s3:create-object doc:name="Create object" doc:id="bc68a376-fef3-4821-bcc9-2064117a2f71" config-ref="Amazon_S3_Configuration" bucketName="${S3.bucket}" key="#[vars.bucketObjectName.ObjectId]"/>
+		<ee:transform doc:name="Status Published" doc:id="b9591820-112e-43ac-bff8-02fec2c76e4d" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -782,17 +772,30 @@ output application/json
 vars.individualAsset.assetId]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<mongo-sapi:update-asset doc:name="Update Asset" doc:id="b52d93b9-7e9a-4047-a495-a1046a39d754" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.mongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-		<logger level="INFO" doc:name="Logger" doc:id="5fb60e3b-36b5-4be2-8c4a-c08d826d6c02" message="Updated status to published in mongo"/>
+		<http:request method="PATCH" doc:name="Mongo Update" doc:id="ed508f6a-bb1c-4d0d-8c94-67c6ad813681" path="mAssets/{mAssetId}" config-ref="mongo_Request_configuration">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.mongoAsset
+}]]]></http:uri-params>
+		</http:request>
+		<logger level="INFO" doc:name="Updated Logger" doc:id="5fb60e3b-36b5-4be2-8c4a-c08d826d6c02" message="Updated status to published in mongo"/>
 		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="4b0f9c48-9381-4561-ba4c-6af6522263be" type="MONGO-SAPI:BAD_REQUEST, MONGO-SAPI:CONNECTIVITY, MONGO-SAPI:FORBIDDEN, MONGO-SAPI:INTERNAL_SERVER_ERROR">
-				<ee:transform doc:name="Transform Message" doc:id="35641d75-de89-4cb7-9b81-8ac1f32bbdff" >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6bbae73e-dcb6-4758-a7a2-89854497f950" type="HTTP:BAD_GATEWAY">
+				<ee:transform doc:name="Transform Message" doc:id="f45cbddb-4fb2-4eea-87da-5d484aa6ba30" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
 {
-	"message":error.description
+	"message" : error.description
 }]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
@@ -800,7 +803,7 @@ output application/json
 		</error-handler>
 	</flow>
 	<flow name="start-assetProcessFlow" doc:id="f12a1fcb-a823-4a8f-b171-a286ca3d9a6c" >
-		<ee:transform doc:name="Transform Message" doc:id="5c9c4c07-a5be-451b-a2a8-d6d95fd531d8" >
+		<ee:transform doc:name="Payload  Sitecore" doc:id="5c9c4c07-a5be-451b-a2a8-d6d95fd531d8" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -821,49 +824,43 @@ output application/json
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<sitecore-sapi:search-and-get-assets doc:name="Search and Get Assets" doc:id="390eafcd-53cd-4480-8668-a615cef60bfe" config-ref="Sitecore_sapi_Config" type="search" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-		<vm:publish doc:name="Publish" doc:id="f9366c12-9844-49eb-b3f6-0717098a654e" config-ref="VM_Config1" queueName="assetQue"/>
+		<http:request method="POST" doc:name="Request" doc:id="954c92f7-e684-4546-97d8-cf75274b1c88" config-ref="sitecore_sapi_Request_configuration" url="http://sitecore-sapi.us-e2.cloudhub.io/api/assets?type=search" responseTimeout="300000">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		<vm:publish doc:name="Publish" doc:id="f9366c12-9844-49eb-b3f6-0717098a654e" config-ref="VM_Config1" queueName="${vm.queue}" timeout="${vm.timeout}"/>
 		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e96fdd98-34f2-4f8d-9799-89dfe565186d" type="SITECORE-SAPI:BAD_REQUEST, SITECORE-SAPI:CONNECTIVITY, SITECORE-SAPI:FORBIDDEN, SITECORE-SAPI:INTERNAL_SERVER_ERROR">
-				<ee:transform doc:name="Transform Message" doc:id="560667ea-ceae-49f2-803c-d1cc80ca7399" >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="3d049075-1ac1-4f1b-9131-23a066c20dab" type="HTTP:BAD_GATEWAY">
+				<ee:transform doc:name="Transform Message" doc:id="8a2b9509-5438-4505-8b47-b12e9e429ab2" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
 {
-	"message":error.description
+	"message" : error.description
 }]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
 			</on-error-propagate>
 		</error-handler>
 	</flow>
-	<flow name="asset-processing-papi-implementationFlow" doc:id="75b030f5-852b-4c32-b88d-450ab9248f54" initialState="stopped">
-		<scheduler doc:name="Scheduler" doc:id="96b4b12e-4e3c-4045-966d-95e21ad2c1e5" >
-			<scheduling-strategy >
-				<fixed-frequency timeUnit="HOURS" frequency="1"/>
-			</scheduling-strategy>
-		</scheduler>
-		<ee:transform doc:name="Transform Message" doc:id="27197478-0287-4573-b4a1-5ed8c97b1c63" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
+	<flow name="deleteAssetsFlow" doc:id="c7893977-c421-419b-8331-01307c07f91e" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="4d0b17b3-9bb2-47fd-b050-39307661d79e" message="#[payload]" />
+		<http:request method="GET" doc:name="Mongo Expired  Asset" doc:id="31a814df-6091-4e70-be69-ad8d803793cd" path="${mongoconfig.exppath}" config-ref="mongo_Request_configuration">
+			<http:headers ><![CDATA[#[output application/java
 ---
 {
-  
-  "skip": 0,
-  "take": 200,
-  "updatedTime": "2018-01-01T09:00:00+00:00"
-  
-}]]></ee:set-payload>
-			</ee:message>
-		</ee:transform>
-		<flow-ref doc:name="Flow Reference" doc:id="6dc3fc1b-c429-4fe7-9305-ede89d6e9a84" name="start-assetProcessFlow"/>
-	</flow>
-	<flow name="deleteAssetsFlow" doc:id="c7893977-c421-419b-8331-01307c07f91e" >
-		<logger level="INFO" doc:name="Logger" doc:id="4d0b17b3-9bb2-47fd-b050-39307661d79e" message="#[payload]" />
-		<mongo-sapi:get-a-expired-asset doc:name="Get a expired asset" doc:id="42299148-008d-4d82-9009-d073156fde06" config-ref="Mongo_sapi_Config" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-		<ee:transform doc:name="Transform Message" doc:id="99079537-b417-4fbf-9d9a-96201b338e40" >
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		<ee:transform doc:name="Expired Assets" doc:id="99079537-b417-4fbf-9d9a-96201b338e40" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -872,7 +869,7 @@ payload]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 		<foreach doc:name="For Each" doc:id="b79b1644-fca1-4f29-b4af-bdd8f99a5dc2" >
-			<ee:transform doc:name="Transform Message" doc:id="85126494-ee64-40a7-8f6b-981612be74b9" >
+			<ee:transform doc:name="Expired Asset" doc:id="85126494-ee64-40a7-8f6b-981612be74b9" >
 				<ee:message >
 					<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -886,7 +883,7 @@ output application/json
 payload]]></ee:set-variable>
 				</ee:variables>
 			</ee:transform>
-			<ee:transform doc:name="Transform Message" doc:id="a0e81ea1-802d-467d-b744-a645486e905c" >
+			<ee:transform doc:name="Extract Objkey" doc:id="a0e81ea1-802d-467d-b744-a645486e905c" >
 				<ee:message >
 					<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -896,8 +893,8 @@ output application/json
 }]]></ee:set-payload>
 				</ee:message>
 			</ee:transform>
-			<s3:delete-object doc:name="Delete object" doc:id="3391b2af-57ac-4053-b1f9-ebb81909e58d" config-ref="Amazon_S3_Configuration" bucketName="sitecore" key="#[payload.toBedeletedAWSObjectKey]"/>
-			<ee:transform doc:name="Transform Message" doc:id="2877b6d4-0f02-48ce-a041-e09037412590" >
+			<s3:delete-object doc:name="Delete Asset" doc:id="3391b2af-57ac-4053-b1f9-ebb81909e58d" config-ref="Amazon_S3_Configuration" bucketName="sitecore" key="#[payload.toBedeletedAWSObjectKey]"/>
+			<ee:transform doc:name="Expiredasset Id" doc:id="2877b6d4-0f02-48ce-a041-e09037412590" >
 				<ee:message >
 				</ee:message>
 				<ee:variables >
@@ -907,8 +904,21 @@ output application/json
 vars.deletePayload.assetId]]></ee:set-variable>
 				</ee:variables>
 			</ee:transform>
-			<mongo-sapi:delete-asset doc:name="Delete Asset" doc:id="fd94117a-3865-4b05-9e50-d17253a256f5" config-ref="Mongo_sapi_Config" m-asset-id="#[vars.deleteMongoAsset]" x-auth-token="DCH" content-type="application/json" x-correlation-id="DCH"/>
-			<ee:transform doc:name="Transform Message" doc:id="99ba1527-ae92-41ca-bbf8-6c5a32321411" >
+			<http:request method="DELETE" doc:name="Mongo Delete Asset" doc:id="7b1e315c-4454-4eb0-8bac-63f75417ce86" path="mAssets/{mAssetId}" responseTimeout="300000" config-ref="mongo_Request_configuration">
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"x-auth-token" : "DCH",
+	"X-Correlation-Id" : "DCH",
+	"content-type" : "application/json"
+}]]]></http:headers>
+				<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"mAssetId" : vars.deletePayload.assetId
+}]]]></http:uri-params>
+			</http:request>
+			<ee:transform doc:name="Url To Emptystring" doc:id="99ba1527-ae92-41ca-bbf8-6c5a32321411" >
 				<ee:message >
 					<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -931,22 +941,28 @@ output application/json
   }}]]></ee:set-payload>
 				</ee:message>
 			</ee:transform>
-			<http:request method="POST" doc:name="Request" doc:id="c6940f10-324e-4b4a-8333-f5f2028bfb9c" config-ref="HTTP_Request_configuration3" path="uAssets">
+			<http:request method="POST" doc:name="Link Update PAPI" doc:id="c6940f10-324e-4b4a-8333-f5f2028bfb9c" path="${updatepapiconfig.updatepath}" responseTimeout="300000" config-ref="Update_papi_Request_configuration">
 				<http:headers ><![CDATA[#[output application/java
 ---
 {
 	"X correlation id" : "DCH"
 }]]]></http:headers>
 			</http:request>
-			<logger level="INFO" doc:name="Logger" doc:id="2864e0ae-062a-434d-9f72-cd709c045de5" message="#[payload]"/>
+			<logger level="INFO" doc:name="End Logger" doc:id="2864e0ae-062a-434d-9f72-cd709c045de5" message="#[payload]"/>
 		</foreach>
-	</flow>
-	<flow name="asset-processing-papi-implementationFlow1" doc:id="af5990b9-35d6-40cc-8106-b9bcfa24adbf" initialState="stopped">
-		<scheduler doc:name="Scheduler" doc:id="6a8ba3d1-383b-4033-8144-73013f171d2a" >
-			<scheduling-strategy >
-				<fixed-frequency frequency="1" timeUnit="DAYS"/>
-			</scheduling-strategy>
-		</scheduler>
-		<flow-ref doc:name="Flow Reference" doc:id="f52d3949-399a-4fab-a900-086fd48308e0" name="deleteAssetsFlow"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e16b854f-558d-4657-91a5-7899a022aaed" type="HTTP:BAD_GATEWAY">
+				<ee:transform doc:name="Transform Message" doc:id="4426a2d9-37c2-40e4-8c8f-56cdffb2ff02" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message" : error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
 	</flow>
 </mule>
